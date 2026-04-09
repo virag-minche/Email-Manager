@@ -85,7 +85,39 @@ def _get_or_reconnect_email_client():
 
 @app.route("/")
 def index():
-    return render_template("index.html")
+    """Root route — returns HTTP 200 (renders UI or JSON based on Accept header)."""
+    accept = request.headers.get("Accept", "")
+    if "text/html" in accept or not accept:
+        return render_template("index.html")
+    return jsonify({"status": "ok", "service": "Email Rectifier Assistant", "version": "2.0.0"})
+
+
+@app.route("/health", methods=["GET"])
+def health():
+    """Health check endpoint — always returns HTTP 200."""
+    return jsonify({"status": "ok", "service": "Email Rectifier Assistant"})
+
+
+@app.route("/reset", methods=["POST"])
+def root_reset():
+    """
+    Root-level /reset for Hugging Face Space + OpenEnv compatibility.
+    Initializes environment with demo data (no auth required).
+    """
+    env = EmailEnv()
+    # Use demo emails processed through AI pipeline
+    demo_emails = [
+        {"id": "demo-1", "sender": "noreply@paypal.com",
+         "subject": "Payment received $49.99", "body": "Your payment was processed. Transaction ID: TXN-123."},
+        {"id": "demo-2", "sender": "hr@techcorp.com",
+         "subject": "Performance Review Q1", "body": "Your review is Monday at 10 AM. Attendance mandatory."},
+        {"id": "demo-3", "sender": "winner@lucky.xyz",
+         "subject": "You Won!!!", "body": "Claim your prize. Send $500 processing fee via wire transfer."},
+    ]
+    from ai_processor import process_email as _ai_process
+    processed = [{**em, "ai": _ai_process(em)} for em in demo_emails]
+    state = env.reset(processed, {"life_mode": "Work", "fraud_sensitivity": "MEDIUM"})
+    return jsonify({"success": True, "state": state, "message": "Environment reset."})
 
 
 # ══════════════════════════════════════════════════════════════════════════════
